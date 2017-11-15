@@ -1,0 +1,60 @@
+library(keras)
+library(rio)
+
+batch_size <- 32
+epochs <- 100
+
+cat('Loading data...\n')
+xd<-import("traindata.csv")
+xl<-import("trainlabel.csv")
+yd<-import("testdata.csv")
+mmn<-function(x){(x-min(x))/(max(x)-min(x))}
+
+xt <- array(unlist(lapply(xd,mmn)),dim=dim(xd))
+yt <- xl[,1]
+xtt <-array(unlist(lapply(yd,mmn)),dim=dim(yd))
+
+num_classes <- max(yt) + 1
+cat(num_classes, '\n')
+
+cat('Vectorizing sequence data...\n')
+
+cat('xt shape:', dim(xt), '\n')
+cat('xtt shape:', dim(xtt), '\n')
+
+cat('Convert class vector to binary class matrix',
+    '(for use with categorical_crossentropy)\n')
+yt<-to_categorical(yt,2)
+cat('yt shape:', dim(yt[1]), '\n')
+
+
+cat('Building model...\n')
+model <- keras_model_sequential()
+model %>% 
+  layer_dense(units = 128,input_shape = c(dim(xt)[2])) %>% 
+  layer_activation(activation = 'relu') %>% 
+  layer_dense(units = 64) %>% 
+  layer_activation(activation = 'relu') %>% 
+  layer_dense(units = 32) %>% 
+  layer_activation(activation = 'relu') %>% 
+  
+  layer_dense(units = num_classes) %>% 
+  layer_activation(activation = 'softmax')
+
+model %>% compile(
+  loss = 'categorical_crossentropy',
+  optimizer = 'rmsprop',
+  metrics = c('accuracy')
+)
+
+history <- model %>% fit(
+  xt, yt,
+  batch_size = batch_size,
+  epochs = epochs,
+  verbose = 2,
+  validation_split = 0.1
+)
+
+pm<-predict(model,xtt)
+pm1<-data.frame(apply(pm,1,which.max)-1)
+export(pm1,"project1_20383422.csv",col.names=FALSE)
